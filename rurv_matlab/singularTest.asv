@@ -1,0 +1,168 @@
+function [riiSigMax, riiSigMin, c1, c2, c3] = singularTest(n,k,initSig,kSig,endSig,p)
+% produces test statistics for matrix with singular values in initSig, kSig
+% and endSig for the rurv algorithm
+
+max(size(initSig))
+
+riiSigMax = zeros(max(size(initSig)), max(size(kSig)), max(size(endSig)), p);
+riiSigMin = zeros(max(size(initSig)), max(size(kSig)), max(size(endSig)), p);
+c1 = zeros(max(size(initSig)), max(size(kSig)), max(size(endSig)), p);
+c2 = zeros(max(size(initSig)), max(size(kSig)), max(size(endSig)), p);
+c3 = zeros(max(size(initSig)), max(size(kSig)), max(size(endSig)), p);
+
+for o = 1:p
+for j = 1:max(size(initSig))
+    for l = 1:max(size(kSig))
+        for m = 1:max(size(endSig))
+            [temp1, temp2, temp3, temp4] = singTestStat(n,k,initSig(j),kSig(l),endSig(m));
+            riiSigMax(j,l,m,o) = max(temp1);
+            riiSigMin(j,l,m,o) = min(temp1);
+            c1(j,l,m,o) = temp2;
+            c2(j,l,m,o) = temp3;
+            c3(j,l,m,o) = temp4;
+        end
+    end    
+end
+end
+    
+end
+
+function [riiSig, c1, c2, c3] = singTestStat(n,k,initSig, kSig, endSig)
+        A = eye(n,n);
+        for i = (n-1):-1:k+1
+            A(i,i) = A(i+1,i+1) * endSig^(1/(n-k-1));
+        end
+        A(k,k) = A(k+1,k+1) *kSig;
+        for i = (k-1):-1:1
+            A(i,i) = A(i+1,i+1) * initSig^(1/(k-1));
+        end
+        B = randn(n,n);
+        [Q,R] = qr(B);
+        C = randn(n,n);
+        [Qq,Rr] = qr(C);
+        A = Q*A*Qq;
+        [U,R,V] = rurv(A);
+        [U,R] = rq(A);
+        Sigma = sort(svd(A),'descend');
+        riiSig = sort(abs(diag(R)),'descend');
+        riiSig = riiSig ./ Sigma;
+        
+        [U,R] = qr(A*U)
+        
+        R
+        eig(A)
+        U'*A*U
+        
+        R11 = R(1:k,1:k);
+        R12 = R(1:k,(k+1):n);
+        R22 = R((k+1):n, (k+1):n);
+        R11min = min(svd(R11));
+        R22max = max(svd(R22));
+        c1 = (sqrt(k*(n-k)) * R11min) / Sigma(k);
+        c2 = 4*(initSig^3)*(k^2)*((n-k)^2)*Sigma(k+1)/R22max;
+        c3 = norm((R11^(-1))*R12)/sqrt(k*(n-k));
+
+end
+
+function [Ap,Bp,bckerr,Rconv,splt,numit] = irs(A,B,alpha,beta,gamma,delta,maxit)
+% implicit repeated squaring (with Mobius transformation)
+
+    n = size(A,1);
+    normA = norm(A);
+
+    % initialize with Mobius transformation
+    Ap = alpha*A + beta*B;
+    Bp = gamma*A + delta*B;
+    R = zeros(n);
+    Rold = ones(n);
+    bckerr = zeros(1,maxit);
+    Rconv = zeros(1,maxit);
+    splt = zeros(1,maxit);
+    
+    % perform repeated squaring
+    numit = 1; converged = false;
+    while norm(R-Rold,1)/norm(Rold,1) > 10*n*eps && numit <= maxit,
+    %while numit <= 7 || (norm(R-Rold,1)/norm(Rold,1) > 10*n*eps && ~converged && numit <= maxit),
+        
+        Rold = R;
+       
+        % QR decomposition of size 2n x n
+        [Q,R] = qr([Bp;-Ap]);
+
+        % enforce positive diagonal entries of R
+        D = diag(sign(diag(R(1:n,:))));
+        R(1:n,:)=D*R(1:n,:);
+        Q(:,1:n)=Q(:,1:n)*D;
+
+        % two n x n matrix multiplies
+        Ap = Q(1:n,n+1:2*n)'*Ap;
+        Bp = Q(n+1:2*n,n+1:2*n)'*Bp;
+
+        % extract square R
+        R = R(1:n,:);
+
+        % complete the divide and conquer with GRURV to compute 
+        % the backward error (for the purposes of plotting)
+        [U,R1,V] = rurv(Ap);
+        [R2,Qr] = rq(U'*(Ap+Bp));
+        A2 = Qr*A*Qr';
+        [E21norm,l] = split(A2);
+        bckerr(numit) = E21norm/normA;
+        Rconv(numit) = norm(R-Rold,1)/norm(Rold,1);
+        splt(numit) = l;
+
+        if (numit >= 3 && bckerr(numit-2) < 10*n*eps && bckerr(numit-1) < 10*n*eps)
+        	converged = true;
+        end
+        
+        numit = numit+1;
+
+    end
+    
+    if numit > maxit,
+        numit = maxit;
+    end
+    
+    
+end
+
+function [U,R,V] = rurv(A)
+% compute rank-revealing decomposition of A (A=URV)
+% U is orthogonal
+% R is upper triangular and rank-revealing (whp)
+% V is Haar matrix (random orthogonal)
+
+    % create Haar matrix
+    [V,R1] = qr(randn(size(A,1)));
+
+    % compute rank-revealing decomposition of A
+    [U,R] = qr(A*V');
+    
+end
+
+function [minnorm,l] = split(A)
+% find SW block of A with minimum norm
+
+    n = size(A,1);
+    val = ones(1,n-1);
+    
+    % compute norm of SW block for each dimension
+    for j = 1:n-1, 
+        val(j) = norm(A(j+1:n,1:j),2);
+    end
+
+    [minnorm,l] = min(val);
+    
+end
+
+function [R,Q] = rq(A)
+% compute RQ factorization using QR
+% R is upper triangular
+% Q is orthogonal
+
+    [Q,R] = qr(flipud(A)');
+    R = fliplr(flipud(R'));
+    Q = flipud(Q');
+    
+end
+
