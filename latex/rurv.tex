@@ -1,0 +1,350 @@
+\documentclass{article}
+\usepackage{fullpage,amssymb,amsmath,amsthm,amsfonts,algorithm,algorithmic,graphicx, subfigure,color}
+
+\def\allow{\mathop{\rm Allow}\nolimits}
+\def\qallow{\mathop{{\rm q}{-}{\rm Allow}}\nolimits}
+\def\Int{\mathop{\rm Int}\nolimits}
+\def\Res{\mathop{\rm Res}\nolimits}
+\def\Dis{\mathop{\rm Dis}\nolimits}
+\def\graph{\mathop{\rm graph}\nolimits}
+\def\codim{\mathop{\rm codim}\nolimits}
+\def\eqbd{\mathop{{:}{=}}}
+\def\bdeq{\mathop{{=}{:}}}
+\def\polylog{\mathop{\rm polylog}\nolimits}
+
+\def\R{\mathbb{R}}
+\def\S{\mathcal{S}}
+\def\G{\mathcal{G}}
+\def\C{\mathbb{C}}
+\def\Z{\mathbb{Z}}
+\def\F{\mathbb{F}}
+\def\H{\mathbb{H}}
+\def\k{{\cal A}}
+\def\i{{\cal I}}
+\def\ee{{\rm e}}
+\def\om{{\rm emax}} 
+\def\qed{\hfill {$\Box$}}
+\def\DD{{\bf\Theta}}
+\def\D{{\mathbf\Delta}}
+\def\lt{\left}
+\def\rt{\right}
+\newcommand{\red}[1]{\textcolor{red}{#1}}
+
+\newcommand{\bmat}{\left[ \begin{array}}
+\newcommand{\emat}{\end{array} \right]}
+\newcommand{\diag}{{\rm diag}}
+\newcommand{\sign}{{\rm sign}}
+\newcommand{\sep}{{\rm sep}}
+\newcommand{\VEC}{{\rm vec}}
+
+\newcommand{\mtf}{\lfloor \frac{m}{2} \rfloor}
+\newcommand{\mtc}{\lceil \frac{m}{2} \rceil}
+\newcommand{\mt}{\frac{m}{2}}
+\newcommand{\dis}{\displaystyle}
+\newcommand{\ra}{\rightarrow}
+
+\newcommand{\ignore}[1]{}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{result}[theorem]{Result}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{conjecture}[theorem]{Conjecture}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{construction}[theorem]{Construction}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\Sym}{{\operatorname{Sym}}}
+\newcommand{\End}{{\operatorname{End}}}
+\newcommand{\Fr}[1]{{\|#1\|_{\mathrm{F}}}}
+\newcommand{\Err}{{\mathrm{Err}}}
+\newcommand{\ve}{\varepsilon}
+\newcommand{\smin}{s_{r,n}}
+
+\graphicspath{{figures/}}
+
+\title{A Generalized Randomized Rank-Revealing Factorization}
+%Minimizing Communication for Eigenproblems and the Singular Value Decomposition}
+
+\author{Grey Ballard\thanks{CS Division, University of California, Berkeley, CA 94720},
+James Demmel\thanks{Mathematics Department and CS Division,
+University of California, Berkeley, CA 94720.},
+Ioana Dumitriu\thanks{Mathematics Department, University of Washington, Seattle, WA 98195.} and Chris Melgaard\thanks{CS Division, University of California, Berkeley, CA 94720}}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+
+\end{abstract}
+
+\section{Introduction} \label{Intro} 
+
+\section{Smallest singular value bounds}
+
+The estimates for our main theorem are based on the following result, a more general case of which can be found in \cite{dumitriu?} as Theorem []. 
+
+%\red{I know I proposed $\smin$ as the random variable for the smallest singular value of an $r\times r$ corner of an $n\times n$ Haar matrix, but I think it gets confusing in the main theorem.  There $\smin$ is random and independent of the matrix $A$ and $\sigma_i$ with $i=1,r,r+1$ are all singular values of the matrix $A$.  I've made it a macro so we can change it easily.  It might be worth stating it in a definition environment upfront, and then the following proposition can read``The distribution of $\smin^2$ is...".}
+
+\begin{proposition} The probability density function (pdf) of the square of the smallest singular value of an $r \times r$ corner of an $n \times n$ real Haar matrix, with $r < n/2$, is given by
+\[
+f_{r,n}(x) = c_{r,n} \frac{1}{\sqrt{x}} (1 - x)^{\frac{1}{2}r(n-r)-1}  {_{2}F_{1}} \left ( \frac{1}{2}(n-r-1), \frac{1}{2}(r-1); \frac{1}{2}(n-1)+1; 1-x \right)~,
+\]
+where
+\[
+c_{r,n} = \frac{\frac{1}{2}r(n-r) ~\Gamma \left( \frac{1}{2}(n-r+1) \right) ~\Gamma \left ( \frac{1}{2}(r+1) \right)}{\Gamma \left (\frac{1}{2} \right) ~\Gamma \left ( \frac{1}{2} (n+1) \right)}~.
+\]
+\end{proposition}
+
+This Proposition allows us to estimate very closely the probability that the smallest singular value $\smin$ is small. In particular, the correct scaling for the asymptotics of $\smin$ under $r$ and$\slash$or $n \rightarrow \infty$ was proved to be $\sqrt{r(n-r)}$ (that is, $\smin \sqrt{r(n-r)} = O(1)$ almost surely), which means that the kind of \red{upper} bounds one should search for $\smin$ are of the form ``$\smin \red{\leq} \red{a}/\sqrt{r(n-r)}$'' for some constant $\red{a}$. This constant $\red{a}$ will depend on how confident we want to be that the inequality happens; if we wish to say that the inequality fails with probability $\delta$, then we will have $\red{a}$ as a function of $\delta$. \red{GB -  I switched lower to upper because we use only the upper bound on $\smin$, and I switched $c$ to $a$ because $c$ gets used later in the main theorem.}
+
+
+\begin{lemma} 
+\label{low_bd}
+Let $\delta>0$, $r, (n-r)>30$; then $\smin \leq \frac{\delta}{\sqrt{r(n-r)}}$
+satisfies $P\left [ \smin \leq \frac{\delta}{\sqrt{r(n-r)}} \right] \leq  2.02 \delta$.
+\end{lemma}
+\begin{proof} 
+
+What we essentially need to do here is find an upper bound on $f_{min}$ which, when integrated over small intervals next to $0$, yields the bound in the Lemma.
+
+We will first upper bound the term $(1-x)^{\frac{1}{2}r(n-r)-1}$ in the expression of $f_{min}(x)$ by $1$.
+
+Secondly, we note that the hypergeometric function has all positive arguments, and hence from its definition, it is  monotonically decreasing from $0$ to $1$, and so we bound it by its value at $x=0$. As per \red{\cite[Formula 15.1.20]{Abr_Steg}}, 
+\[
+_{2}F_{1} \left ( \frac{1}{2}(n-r-1), \frac{1}{2}(r-1); \frac{1}{2}(n-1)+1; 1\right) = \frac{\Gamma \left (\frac{1}{2} (n+1) \right) \Gamma\left(\frac{3}{2}\right)}{\Gamma \left ( \frac{1}{2}(n-r+2)\right) \Gamma \left ( \frac{1}{2} (r+2) \right) }~,
+\]
+and after some obvious cancellation we obtain that 
+\[
+f_{min}(x) \leq \frac{1}{2} r(n-r) \cdot \frac{\Gamma \left ( \frac{1}{2}(n-r+1)\right)}{\Gamma \left (\frac{1}{2}(n-r+2)\right)} \cdot \frac{\Gamma \left(\frac{1}{2}(r+1)\right)}{\Gamma \left ( \frac{1}{2} (r+2)\right)} \cdot \frac{1}{\sqrt{x}}.
+\]
+
+The following expansion can be derived from Stirling's formula and is given as a particular case of \cite[Formula 6.1.47]{Abr-Steg} (with $a = 0,~b = 1/2$):
+\[
+z^{1/2} \frac{\Gamma(z)}{\Gamma(z+ 1/2)} = 1 + \frac{1}{8z} + \frac{1}{128z^2} + o\left(\frac{1}{z^2}\right)~,
+\]
+as $z$ real and $z \rightarrow \infty$. 
+%\red{GB - I reworded the previous sentence because the I was confused by the meaning, please check that I interpreted it correctly.} 
+In particular, $z>30$ means that $z^{1/2} \frac{\Gamma(z)}{\Gamma(z+ 1/2)} < 1.01$. %\red{Why give both upper and lower bounds here?  Isn't it always bigger than 1, or is the function not monotonic?  Also, and this is not  important, but if you take $z>30$ I think you can get the square to be less than 1.01 which will save us some space (keeping 2 digits rather than the rounded 3).}
+
+Provided that $r, n-r >30$, we thus have
+\[
+f_{min}(x) \leq 1.01 \cdot \sqrt{ r(n-r)} \sqrt{\frac{r(n-r)}{(r+1)(n-r+1)}} \frac{1}{\sqrt{x}}~,
+\]
+and so
+\[
+f_{min}(x) \leq 1.01  \cdot \sqrt{ r(n-r)}  \cdot \frac{1}{\sqrt{x}}~.
+\]
+
+%Quick integration, plus a simple change of variables, allows us to conclude the following result. 
+Note that this last inequality allows us to conclude the following:
+\begin{eqnarray*}
+P\left [ \smin \leq \frac{\delta}{\sqrt{r(n-r)}} \right] & = & P\left [ \smin^2 \leq \frac{\delta^2}{r(n-r)} \right] \\
+& \leq &  1.01 \int_0^{\frac{\delta^2}{r(n-r)}} \sqrt{r(n-r)} \frac{1}{\sqrt{t}} dt  \\
+& = &  2.02 \delta. 
+\end{eqnarray*}
+The last equality was obtained by the change of variable $t = y/(r(n-r))$. 
+
+\end{proof}
+
+As an immediate corollary to Lemma \ref{low_bd} we obtain the following result, which is what we will actually use in our calculations.
+
+\begin{corollary} 
+ \label{lowbd}
+ Let $\delta>0$, $r, n-r>30$. Then 
+$$\red{P\left [ \frac1\smin \leq \frac{2.02}{\delta}\sqrt{r(n-r)} \right] \geq 1-\delta}~.$$
+\end{corollary}
+
+%\red{GB - I switched the statement of the corollary to the version we use.}
+
+% Similarly, we can find an upper bound for how big the probability that $\smin$ is larger than $\Delta/\sqrt{r(n-r)}$ is; the proof follows the same constant-upper-bounding steps as the lower bound above, but this time the term $(1-x)^{\frac{1}{2}r(n-r)-1}$ becomes essential.
+
+% Take now some $\Delta>0$; it follows that
+% \begin{eqnarray*}
+% P\left [ \smin \geq \frac{\Delta}{\sqrt{r(n-r)}} \right] & = & P\left [ \smin^2 \geq \frac{\Delta^2}{r(n-r)} \right] \\
+% & \leq &  \frac{1.021}{\sqrt{2}} \int_{\frac{\Delta^2}{r(n-r)}}^1 \sqrt{r(n-r)} \frac{1}{\sqrt{t}} (1-t)^{\frac{1}{2}r(n-r)-1} dt \\
+% & \leq & \frac{1.021}{\sqrt{2}} \frac{1}{\Delta} \int_{\Delta^2}^{r(n-r)} \left(1 - \frac{y}{r(n-r)} \right)^{\frac{1}{2}r(n-r)} dy~;
+% \end{eqnarray*}
+% and by using the fact that $1-x \leq e^{-x}$ for all $x \in (0,1)$ we obtain the following bound.
+
+% \begin{lemma}
+% Let $\Delta>1$, $r, (n-r)>20$. Then $\smin \leq \frac{\delta}{\sqrt{r(n-r)}}$
+% satisfies $P\left [ \smin \geq \frac{\Delta}{\sqrt{r(n-r)}} \right] \leq \frac{\sqrt{2.042}}{\Delta} e^{-Delta^2/2}$.
+% \end{lemma}
+% \begin{proof}
+% From the inequalities above it follows that
+% \begin{eqnarray}
+% P\left [ \smin \geq \frac{\Delta}{\sqrt{r(n-r)}} \right] & \leq & \frac{1.021}{\sqrt{2}} \frac{1}{\Delta} \int_{\Delta^2}^{r(n-r)} e^{-y/2} dy \\
+% & \leq & \frac{\sqrt{2.042}}{\Delta} e^{-Delta^2/2}~.
+% \end{eqnarray}
+% \end{proof}
+
+% In particular, the following reverse reading will prove useful, provided that $\delta^2< \frac{2.042}{e}:$
+% \begin{eqnarray} \label{upbd}
+% P\left [ \smin \geq \frac{\sqrt{2 \ln \frac{1.012 \sqrt{2}}{\delta}}}{\sqrt{r(n-r)}} \right]&  \leq & \delta~.
+% \end{eqnarray}
+
+
+\section{Bounding the probability of failure for RURV}
+
+It was proven in \cite{DDH07} that, with high probability, \textbf{RURV} computes a good rank revealing decomposition of $A$ in the case of $A$ real. Specifically, the quality of the rank-revealing decomposition depends on computing the asymptotics of $\smin$, the smallest singular value of an $r \times r$ submatrix of a Haar-distributed orthogonal $n \times n$ matrix. All the results of \cite{DDH07} can be extended verbatim to Haar-distributed unitary matrices; however, the analysis employed in \cite{DDH07} is not optimal. Using the bounds obtained for $\smin$ in the previous section, we can improve them here. 
+
+We will tighten a bit the argument to obtain one of the upper bounds for $\sigma_{max}(R_{22})$. In addition, the result of \cite{DDH07} states only that \textbf{RURV} is, with high probability, a rank-revealing factorization. Here we strengthen these
+results to argue that it is actually a \emph{strong} rank-revealing
+factorization (as defined in the Introduction), since with high probability $||R_{11}^{-1} R_{12}||$ will be small. We obtain the following theorem. 
+
+
+\begin{theorem} \label{thm_rurv}  Let $A$ be an $n \times n$ matrix
+  with singular values $\sigma_1, \ldots, \sigma_r, \sigma_{r+1},
+  \ldots, \sigma_n$. Let $\delta>0$ be a small number, and let $c>1$, $C >1$ be two constants. 
+
+Let $R$ be the matrix produced by the \textbf{RURV} algorithm on $A$, \emph{in
+    exact arithmetic}.  Assume that $r, n-r > 30$. 
+
+Let $\frac{\sigma_1}{\sigma_r} \leq c$, and that $\frac{\sigma_{r}}{\sigma_{r+1}} \geq C n$. Assume further that $\delta C > 1.01$. 
+
+Then, with probability $1-\delta$, the following three events occur:
+\begin{eqnarray}
+\label{unu} \frac{\delta}{2.02} \frac{\sigma_{r}}{\sqrt{r (n-r)}} & \leq & \sigma_{\min}(R_{11}) \leq \sigma_r ~,\\ 
+\label{doi} \sigma_{r+1} & \leq & \sigma_{\max} (R_{22}) \leq \left ( \frac{\left ( \frac{2.02 c}{\delta} \right)^3 \frac{1.01}{\delta C}}{1- \left ( \frac{1.01}{\delta C} \right)^2} (r(n-r))^{3/2} +  \frac{\left ( \frac{2.02 c}{\delta} \right)^2}{1 -\left ( \frac{1.01}{\delta C} \right)^2} r(n-r) + 1 \right ) \sigma_{r+1}~,\\
+\label{trei} ||R_{11}^{-1} R_{12}||_2 & \leq & \frac{2.02}{\delta} \frac{1}{1-\left ( \frac{1.01}{\delta C} \right)^{\red{2}}} \sqrt{r (n-r)} + \frac{(1.01)^2}{\delta^2 C^2} \frac{1}{1 - \left ( \frac{1.01}{\delta C} \right)^2} ~.
+\end{eqnarray}
+\end{theorem}
+
+The expressions in the above theorem are as general as possible; for simplicity of calculations, in our experiments, we will make use of the more restrictive assumption $\delta C>\sqrt{2} \cdot 1.01$, and upper bound all quantities involved accordingly. This yields the following corollary.
+
+\begin{corollary}
+Under all assumptions above and with the additional assumption that $\delta C>\sqrt{2} \cdot 1.01$, the following are true with probability $1-\delta$:
+\begin{eqnarray}
+\label{unu} \frac{\delta}{2.02} \frac{\sigma_{r}}{\sqrt{r (n-r)}} & \leq & \sigma_{\min}(R_{11}) \leq \sigma_r ~,\\ 
+\label{doi} \sigma_{r+1} & \leq & \sigma_{\max} (R_{22}) \leq \left (4c^3C^3 (r(n-r))^{3/2} +  4c^2C^2 r(n-r) + 1 \right ) \sigma_{r+1}~,\\
+\label{trei} ||R_{11}^{-1} R_{12}||_2 & \leq & 2C\sqrt{2}\cdot \sqrt{r (n-r)} + 1 ~.
+\end{eqnarray}
+\end{corollary}
+%\red{In hopes of simplifying the presentation of the bounds, I propose we assume that $\delta C> \sqrt 2 \cdot 1.01$.  By doing so, we can bound $1/(1-(1.01/(\delta C))^2)$ by 2 and replace the four appearances of that denominator with a change in constant.  Then maybe we can state every term in the upper bounds as constant times fraction involving powers of $\delta,C,c$ times some power of $r(n-r)$, and the bounds will be easier to parse.}
+
+%\normalsize
+
+\begin{remark} The multiplicative link between $\delta$ and $C$ can easily be seen to mean that the smaller the gap \red{between consecutive singular values}, the greater the uncertainty \red{that the above inequalities hold}. Also note that the constant $1.01$ can be made arbitrarily close to $1$, provided that $n$ and $r$ are large enough, as should be clear from the proof of Lemma \ref{low_bd}.
+However, one needs $C$ to be strictly bigger than $1$ \red{in order to guarantee that} this algorithm \red{will} succeed with positive probability, even when $n$ and $r$ are very large indeed.  \red{GB - The previous wording made it sound like the algorithm will certainly fail if $C\leq 1$, but it's only the analysis that fails.}
+%If $C \leq 1$, we cannot provide any guarantees that the algorithm will work.
+%\red{Does this mean for $C<1$ that the bounds are sure to fail, or just that we can't prove any guarantee?}
+%The $2$ in the condition $\sigma_r/\sigma_{r+1} > 2n$
+%  can be replaced by any number strictly greater than $1$.
+\end{remark}
+
+
+\begin{proof} There are two cases of the problem, $r \leq n/2$ and $r> n/2$. 
+Let $V$ be the Haar matrix used by the algorithm. 
+From \cite[Theorem 2.4-1]{golubvanloan}, 
+the singular values of $V(1:r, 1:r)$ when $r>n/2$ consist 
+of $(2r-n)$ $1$'s and the singular values of $V((r+1):n ,(r+1):n)$. 
+Thus, the case $r>n/2$ reduces to the case $r \leq n/2$.
+
+%The first two relationships, \eqref{unu} and \eqref{doi}, follow from the proof of Theorem 5.2 in \ref{DDH07} and the bound \eqref{lowbd}; specifically, the first follows immediately, while the second requires some explanations, which we provide. The third equation we will prove here. 
+
+The upper bound in inequality \eqref{unu} and the lower bound in inequality \eqref{doi} follow from the Cauchy interlace theorem (see \cite[Theorem 7.3.9]{horn_johnson1}). 
+The lower bound in inequality \eqref{unu} follows immediately from \cite[Theorem 5.2]{DDH07} and Corollary \ref{lowbd}.
+We provide proofs of the upper bounds of inequalities \eqref{doi} and \eqref{trei}, below. 
+
+Theorem 5.2 from \cite{DDH07} states that 
+$$\sigma_{\max}(R_{22}) \leq 3\sigma_{r+1} \cdot \frac{\smin^{-4} \cdot \left ( \frac{\sigma_1}{\sigma_r} \right)^3}{1 - \frac{\sigma_{r+1}^2}{\smin^2 \sigma_r^2}}~;$$
+provided that $\sigma_{r+1} < \sigma_r \smin$.
+This upper bound is lax, and we tighten it here.
+%the factor of $3$ is a lax but convenient upper bound, as 
+
+The proof of Theorem 5.2 actually shows the stronger statement that 
+\begin{equation} \label{three_terms}
+\sigma_{\max}(R_{22}) \leq \frac{ \sigma_1^3 \frac{\sigma_{r+1}^2}{\smin^{4} \sigma_r^4}}{1 - \frac{\sigma_{r+1}^2}{\smin^2 \sigma_r^2}} + \frac{\sigma_1^2\sigma_{r+1}}{\smin^2\sigma_r^2 - \sigma_{r+1}^2} + \sigma_{r+1}~.
+\end{equation}
+We note now that, under the assumptions of the problem and by Corollary \ref{lowbd}, with probability at least $1-\delta$, 
+\[
+\frac{\sigma_{r+1}}{\smin \sigma_r} \leq \frac{1}{Cn} \frac{2.02 \sqrt{r(n-r)}}{\delta}
+\] and since $\sqrt{r(n-r)} \leq n/2$, the above simplifies to
+\[
+\frac{\sigma_{r+1}}{\smin \sigma_r} \leq \frac{1.01}{\delta C}~.
+\]
+We use now the above together with the fact that, on $[0,1)$, the function $1/(1-x^2)$ is increasing, to obtain that
+\[
+\frac{1}{1 - \frac{\sigma_{r+1}^2}{\smin^2 \sigma_r^2}} \leq \frac{1}{1 - \left ( \frac{1.01}{\delta C} \right)^2}~.
+\]
+ At the same time, $\smin^{-1} \leq 2.02 \sqrt{r(n-r)}/\delta$. The first of the three terms on the right hand side of \eqref{three_terms} can be rewritten suitably and bounded from above:
+\[
+\frac{\left ( \frac{\sigma_1}{\sigma_r} \right)^3 \frac{1}{\smin^3}  \frac{\sigma_{r+1}}{\smin \sigma_r}}{ 1 - \frac{\sigma_{r+1}^2}{\smin^2 \sigma_r^2}} \sigma_{r+1} \leq \frac{c^3 \left ( \frac{2.02 \sqrt{r(n-r)}}{\delta} \right)^3 \frac{1.01}{\delta C}}{1 - \left ( \frac{1.01}{\delta C} \right)^2} \sigma_{r+1}~,
+\]
+while, after dividing top and bottom by $\smin^2 \sigma_{r}^2$, the second term becomes
+\[
+\frac{\left ( \frac{\sigma_1}{\sigma_r} \right)^2 \frac{1}{\smin^2}}{ 1 - \frac{\sigma_{r+1}^2}{\smin^2 \sigma_r^2}} \sigma_{r+1} \leq \frac{c^2 \left ( \frac{2.02 \sqrt{r(n-r)}}{\delta} \right)^2}{1 - \left ( \frac{1.01}{\delta C} \right)^2}\sigma_{r+1}~.
+\]
+
+ Putting it all together, we obtain the upper bound of \eqref{doi}.  
+
+To prove \eqref{trei}, we use the following notation. Let $A = P \Sigma Q^{H} = P \cdot \diag(\Sigma_1, \Sigma_2) \cdot Q^{H}$ be the singular value decomposition of $A$, where $\Sigma_1 = \diag(\sigma_1, \ldots, \sigma_r)$ and $\Sigma_2 = \diag(\sigma_{r+1}, \ldots, \sigma_n)$. Let $V^H$ be the random unitary matrix in \textbf{RURV}, so that $A=URV$. Then $X = Q^{H}V^{H}$ has the same distribution as $V^{H}$, by virtue of the fact that $V$'s distribution is uniform over unitary matrices. 
+
+Write 
+\[
+X = \left [ \begin{array}{cc} X_{11} & X_{12} \\ X_{21} & X_{22} \end{array} \right ]~,
+\]
+where $X_{11}$ is $r \times r$, and $X_{22}$ is $(n-r) \times (n-r)$. 
+
+Then 
+\[
+U^H P \cdot \Sigma X = R~;
+\]
+denote $\Sigma \cdot X = [Y_1, Y_2]$ where $Y_1$ is an $n \times r$ matrix and $Y_2$ in an $(n-r) \times n$ one. Since $U^{H}P$ is unitary, it is not hard to check that 
+\[
+R_{11}^{-1} R_{12} = Y_1^{+} Y_2~,
+\]
+where $Y_1^{+}$ is the pseudoinverse of $Y_1$, i.e. $Y_1^{+} = (Y_1^H
+Y_1)^{-1} Y_1^H$. 
+
+There are two crucial facts that we need  to check here: one is that $R_{11}^{-1}$ actually exists, and the other is that the pseudoinverse (as defined above) is well-defined, that is, that $Y_1$ is full rank. We start with the second one of these facts.
+
+The matrix $Y_1$ is full-rank with probability $1$. This is true due to two facts: the first one is that the first $r$ singular values of $A$, ordered decreasingly on the diagonal of \red{$\Sigma$}, are strictly positive. The second one is that $X$ is Haar distributed, that is, uniformly on the manifold of orthogonal matrices, and hence the probability that its first $r$ columns are dependent is $0$. In particular, this means that, with probability $1$, $X_{11}$ is invertible and $Y_1^{+}$ is well-defined. 
+
+To argue that $R_{11}^{-1}$ exists, note that $Y_1 = P^HU[R_{11};0]$ so rank($Y_1$)$=$rank($R_{11}$) as $P^HU$ is unitary.  Since $Y_1$ is full-rank, it follows that $R_{11}$ is invertible.
+%As $Y_1 = \Sigma_1 X$ and $Y_2 = \Sigma_2 X$
+
+Having made sure that the equation relating $R_{11}^{-1} R_{12}$ and $Y_1$ is correct, we proceed to study the right hand side. From the definition of $Y$, we obtain that
+\[
+Y_1^H Y_1 = X_{11}^H \Sigma_{1}^2 X_{11} + X_{21}^H\Sigma_2^2 X_{21}~~, ~~~~\mbox{and}~~~~ Y_1^H Y_2 = X_{11}^H \Sigma_{1}^2 X_{12} + X_{21}^H\Sigma_2^2 X_{22}~~.
+\]
+Hence
+\[
+R_{11}^{-1} R_{12} = \left (X_{11}^{H} \Sigma_1^2 X_{11} + X_{21}^{H} \Sigma_2^2 X_{21} \right)^{-1} \left ( X_{11}^{H} \Sigma_1^2 X_{12} + X_{21}^{H} \Sigma_2^2 X_{22} \right)~.
+\]
+We split this into two terms. Let $T_1$ be defined as below; we have that
+\[
+T_1 := \left (X_{11}^{H} \Sigma_1^2 X_{11} + X_{21}^H \Sigma^2_2 X_{21} \right )^{-1} X_{11}^{H} \Sigma_1^2 X_{12} = X_{11}^{-1} \left ( \Sigma_1^2 + (X_{21} X_{11}^{-1})^{H} \Sigma_2^2 (X_{21} X_{11}^{-1}) \right )^{-1} \Sigma_1^2 X_{12}~,
+\]
+where the last equality reflects the factoring out of $X_{11}^H$ to the left and of $X_{11}$ to the right inside the first parenthesis, followed by cancellation. 
+Since $X_{12}$ is a submatrix of a unitary matrix, $||X_{12}|| \leq 1$, and thus
+\begin{eqnarray} \label{r-bound}
+||T_1|| \leq ||X_{11}^{-1}|| \cdot  || \left (I_r + \Sigma_1^{-2} (X_{21} X_{11}^{-1})^{H} \Sigma_2^2 (X_{21} X_{11}^{-1}) \right )^{-1}|| \leq \frac{1}{\smin} \cdot \frac{1}{1 - \frac{\sigma_{r+1}^2}{ \smin^2 \sigma_r^2}}~,
+\end{eqnarray}
+where the last inequality follows from the \red{fact} that for a matrix $A$ with $||A||<1$, $||(I-A)^{-1}|| \leq \frac{1}{1 - ||A||}$. The right hand side has been obtained by applying norm inequalities and using the fact that $||X_{11}^{-1}|| = \smin^{-1}$. 
+
+The same bounds on $\smin$ and $\sigma_{r+1}/(\smin \sigma_{r})$ apply as before to yield the first summand in \eqref{trei}.
+
+We now apply similar reasoning to the second (remaining) term
+\[
+T_2:= \left (X_{11}^{H} \Sigma_1^2 X_{11} + X_{21}^H \Sigma^2_2 X_{21} \right )^{-1} X_{21} \Sigma_2^2 X_{22}~;
+\]
+to yield that 
+\begin{eqnarray} \label{r-bound2}
+||T_2|| \leq ||X_{11}^{-1}||^2 ||\left ( I_r + \Sigma_1^{-2} (X_{21} X_{11}^{-1})^{H} \Sigma_2^2 (X_{21} X_{11}^{-1})\right)^{-1} || \cdot 
+||\Sigma_1^{-2} || \cdot || \Sigma_2^{2}|| \leq \frac{\sigma_{r+1}^2}{\smin^2 \sigma_r^2} \cdot \frac{1}{1 - \frac{\sigma_{r+1}^2}{ \smin^2 \sigma_r^2}}~,
+\end{eqnarray}
+because $||X_{21}||$ and $||X_{22}|| \leq 1$.
+
+The conditions imposed in the hypothesis give an upper bound which is the second summand in \eqref{trei}. 
+
+From \eqref{r-bound} and \eqref{r-bound2}, the conclusion follows. 
+\end{proof}
+     
+\end{document}
