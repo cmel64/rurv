@@ -64,6 +64,7 @@
 \newcommand{\Err}{{\mathrm{Err}}}
 \newcommand{\ve}{\varepsilon}
 \newcommand{\smin}{s_{r,n}}
+\newcommand{\fmin}{f_{r,n}}
 
 \graphicspath{{figures/}}
 
@@ -73,7 +74,7 @@
 \author{Grey Ballard\thanks{CS Division, University of California, Berkeley, CA 94720},
 James Demmel\thanks{Mathematics Department and CS Division,
 University of California, Berkeley, CA 94720.},
-Ioana Dumitriu\thanks{Mathematics Department, University of Washington, Seattle, WA 98195.} and Chris Melgaard\thanks{CS Division, University of California, Berkeley, CA 94720}}
+Ioana Dumitriu\thanks{Mathematics Department, University of Washington, Seattle, WA 98195.}, and Chris Melgaard\thanks{CS Division, University of California, Berkeley, CA 94720}}
 
 \begin{document}
 
@@ -85,15 +86,129 @@ Ioana Dumitriu\thanks{Mathematics Department, University of Washington, Seattle,
 
 \section{Introduction} \label{Intro} 
 
+\section{Randomized Rank-Revealing Decompositions} \label{rrdr}
+
+Let $A$ be an $n \times n$ matrix with singular values $\sigma_1 \geq \sigma_2 \geq \ldots \geq \sigma_n$, and assume that there is a ``gap'' in the singular values at level $k$, that is, $\sigma_1/\sigma_k = O(1)$, while $\sigma_k/\sigma_{k+1} \gg 1$. 
+
+Informally speaking, a decomposition of the form $A = URV$ is called \emph{rank revealing} if the following conditions are fulfilled:
+\begin{itemize}
+\item[1)] $U$ and $V$ are orthogonal/unitary and $R = \left [ \begin{array}{cc} R_{11} & R_{12} \\ O & R_{22} \end{array} \right ]$ is upper triangular, with $R_{11}$  $k \times k$ and  $R_{22}$  $(n-k) \times (n-k)$;
+\item[2)] $\sigma_{min}(R_{11})$ is a ``good'' approximation to $\sigma_k$ (at most a factor of a low-degree polynomial in $n$ away from it),
+\item[(3)] $\sigma_{max}(R_{22})$ is a ``good'' approximation to $\sigma_{k+1}$ (at most a factor of a low-degree polynomial in $n$ away from it);
+\item[(4)] In addition, if $||R_{11}^{-1}R_{12}||_2$ is small (at most a low-degree polynomial in $n$), then the rank-revealing factorization is called  \emph{strong} (as per \cite{GE96}).
+
+\end{itemize}
+
+Rank revealing decompositions are used in rank determination \cite{stewart84}, least square computations \cite{CH92}, 
+condition estimation \cite{bischof90a}, etc.,
+as well as in divide-and-conquer algorithms for eigenproblems.
+For a good survey paper, we recommend \cite{GE96}.
+
+In the paper \cite{DDH07}, we have proposed a \emph{randomized} rank revealing factorization algorithm \textbf{RURV}. Given a matrix $A$, the routine computes a decomposition $A = URV$ with the property that $R$ is a rank-revealing matrix; the way it does it is by ``scrambling'' the columns of $A$ via right multiplication by a uniformly random orthogonal (or unitary) matrix $V^{H}$. The way to obtain such a random matrix (whose described distribution over the manifold of unitary/orthogonal matrices is known as \emph{Haar}) is to start from a matrix $B$ of independent, identically distributed normal variables of mean $0$ and variance $1$, denoted here and throughout the paper by $N(0,1)$. The orthogonal/unitary matrix $V$ obtained from performing the \textbf{QR} algorithm on the matrix $B$ is Haar distributed. 
+
+Performing \textbf{QR} on the resulting matrix $A V^{H}=:\hat{A} = UR$ yields two matrices, $U$ (orthogonal or unitary) and $R$ (upper triangular), and it is immediate to check that $A = URV$. 
+
+\begin{algorithm}
+\protect\caption{Function $[U, R, V] =$\textbf{RURV}$(A)$, computes a randomized rank revealing decomposition $A = URV$, with $V$ a Haar matrix.} 
+\begin{algorithmic}[1]
+\label{rurv}
+\STATE Generate a random matrix $B$ with i.i.d. $N(0,1)$ entries. 
+\STATE $[V, \hat{R}] = $\textbf{QR}$(B)$.
+\STATE $\hat{A} = A \cdot V^{H}$.
+\STATE $[U,R] =$ \textbf{QR}$(\hat{A})$.
+\STATE Output $R$.
+\end{algorithmic}
+\end{algorithm}
+
+Similarly to \textbf{RURV} we define the routine \textbf{RULV}, which performs the same kind of computation (and obtains a rank revealing decomposition of $A$), but uses \textbf{QL} instead of \textbf{QR}, and thus obtains a lower triangular matrix in the middle, rather than an upper triangular one. 
+
+Given \textbf{RURV} and \textbf{RULV}, we now can give a method to find a randomized rank-revealing factorization for a product of matrices and inverses of matrices, \emph{without actually computing any of the inverses or matrix products}. This is a very interesting and useful procedure in itself, but we will also use it in Sections \ref{Algs} and \ref{CRA} in the analysis of a single step of our Divide-and-Conquer algorithms. 
+
+Suppose we wish to find a randomized rank-revealing factorization $M_k = URV$ for the matrix $M_k = A_1^{m_1} \cdot A_2^{m_2} \cdot \ldots A_k^{m_k}$, where $A_1, \ldots, A_k$ are given matrices, and $m_1, \ldots, m_k \in \{-1,1\}$, without actually computing $M_k$ or any of the inverses. 
+
+Essentially, the method performs \textbf{RURV} or, depending on the power, \textbf{RULV}, on the last matrix of the product, and then uses a series of \textbf{QR}/\textbf{RQ} to ``propagate'' an orthogonal/unitary matrix to the front of the product, while computing factor matrices from which (if desired) the upper triangular $R$ matrix can be obtained. A similar idea was explored by G.W. Stewart in \cite{Stewart95} to perform graded \textbf{QR}; although it was suggested that such techniques can be also applied to algorithms like $\textbf{URV}$, no randomization was used. 
+
+The algorithm is presented in pseudocode below. 
+
+\begin{algorithm}
+\protect\caption{Function $U =$\textbf{GRURV}$(k; A_1, \ldots, A_k; m_1, \ldots, m_k)$, computes the $U$ factor in a randomized rank revealing decomposition of the product matrix $M_k = A_1^{m_1} \cdot A_2^{m_2} \cdot \ldots A_k^{m_k}$, where $m_1, \ldots, m_k \in \{-1,1\}$.} 
+\label{grurv}\begin{algorithmic}[1]
+%\STATE Generate a random matrix $B$ with i.i.d. $N(0,1)$ entries. 
+%\STATE $[V, \hat{R}] = $\textbf{QR}$(B)$.
+\IF{$m_k = 1$,}
+\STATE $[U,R_k,V] = \textbf{RURV}(A_k)$
+\ELSE
+\STATE $[U,L_k,V] = \textbf{RULV}(A_k^{H})$
+\STATE $R_k =L_k^{H}$ 
+\ENDIF
+\STATE $U_{current} = U$
+\FOR{$i = k-1$ downto $1$}
+\IF{$m_i = 1$,}
+\STATE $[U,R_i] = \textbf{QR}(A_i \cdot U_{current})$
+\STATE $U_{current} = U$
+\ELSE 
+\STATE $[U,R_i] = \textbf{RQ}(U_{current}^{H} \cdot A_i)$
+\STATE $U_{current} = U^H$
+\ENDIF
+\ENDFOR
+\RETURN $U_{current}$, optionally $V, R_1, \ldots, R_k$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{lemma}
+\textbf{GRURV} (\emph{Generalized Randomized URV}) computes the rank-revealing decomposition $M_k = U_{current}R_1^{m_1} \ldots R_k^{m_k} V$. 
+\end{lemma}
+
+\begin{proof} Let us examine the case when $k = 2$ ($k>2$ results immediately through simple induction). 
+
+Let us examine the cases:
+\begin{enumerate}
+\item $m_2 = 1$. In this case, $M_2 = A_1^{m_1} A_2$; the first \textbf{RURV} yields
+$M_2 = A_1^{m_1} UR_2V$. \begin{enumerate}
+\item if $m_1 = 1$, $M_2 = A_1 UR_2V$; performing \textbf{QR} on $A_1 U$ yields
+$M_2= U_{current} R_1 R_2 V$.
+%; $R:=R_1 R_2$, as the product of two upper triangular matrices, is also upper triangular. Therefore, de facto, we have obtained a rank-revealing decomposition of $M_2$. Moreover, due to uniqueness, it has to be the same decomposition that we would have obtained, had we performed \textbf{QR} on $M_k V^{H}$. 
+\item if $m_1 = -1$, $M_2 = A_1^{-1} UR_2V$; performing \textbf{RQ} on $U^{H}A_1$ yields $M_2 = U_{current} R_1^{-1} R_2 V$.
+%; since the inverse of an upper triangular mmatrix is upper triangular, again, $R:= R_1^{-1} R_2$ is upper triangular. Once again we have obtained the same rank-revealing decomposition of $M_2$ as if we had performed \textbf{QR} on $M_2 V^{H}$.
+\end{enumerate}
+\item $m_2 = -1$. In this case, $M_2 = A_1^{m_1} A_2^{-1}$; the first \textbf{RULV} yields $M_2 = A_1^{m_1} U L_2^{-H} V = A_1^{m_1} U R_2^{-1} V$. \begin{enumerate}
+\item if $m_1 = 1$, $M_2 = A_1 U L_2^{-H} V = A_1 U R_2^{-1} V$; performing \textbf{QR} on $A_1 U$ yields $M_2 = U_{current} R_1 R_2^{-1} V$.
+%; since $L_2^{-H}$ is an upper triangular matrix, and so $R:= R_1 L_2^{-H}$ is upper triangular, and this is the same rank-revealing decomposition we would have obtained for $M_2$ if we had started with $V$ and performed \textbf{QR} on $M_2 V^{H}$.
+\item finally, if $m_2 = -1$,  $M_2 = A_1^{-1} U L_2^{-H} V = A_1^{-1} U R_2^{-1}V$; performing \textbf{RQ} on $U^{H}A_1$ yields $M_2 = U_{current} R_1^{-1} R_2^{-1} V$.
+%, and $R:=R_1^{-1} L_2^{-H}$ is upper triangular, again, and the decomposition of $M_2$ is complete. 
+\end{enumerate}
+\end{enumerate}
+
+Note now that in all cases $M_k = U_{current} R_1^{m_1} \ldots R_k^{m_k} V$. Since the inverse of an upper triangular matrix is upper triangular, and since the product of two upper triangular matrices is upper triangular, it follows that $R:=R_1^{m_1} \ldots R_k^{m_k}$ is upper triangular. Thus, we have obtained a rank-revealing decomposition of $M_k$; the same rank-revealing decomposition as if we have performed $QR$ on $M_k V^{H}$.
+\end{proof}
+
+By using the stable \textbf{QR} and \textbf{RQ} algorithms described in \cite{DDH07}, as well as \textbf{RURV}, we can guarantee the following result.
+
+\begin{theorem} \label{thm_grurv} The result of the algorithm \textbf{GRURV} is the same as the result of 
+\textbf{RURV} on the (explicitly formed) matrix $M_k$; therefore, given a large gap in the 
+singular values of $M_k$, $\sigma_{r+1} \ll \sigma_r \sim \sigma_1$, 
+the algorithm \textbf{GRURV} produces a rank-revealing decomposition with high probability.
+\end{theorem}
+
+Note that we may also return the matrices $R_1, \ldots, R_k$, from which the factor $R$ can later 
+be reassembled, if desired (our algorithms only need $U_{current}$, not $R =R_1^{m_1} \ldots R_k^{m_k}$,
+and so we will not compute it).
+
+%Note that it would be easy enough to keep track of the resulting upper triangular matrix $R$ as well, by multiplying the result of \textbf{QR} or the inverse of the matrix obtained through \textbf{RQ} to the left of the current $R$ matrix. However, this would imply taking inverses of (triangular) matrices, which is what we wanted to avoid.
+%Armed with \textbf{RURV} and \textbf{RULV}, we now present the generalized eigenvalue decomposition algorithm (following the same notational conventions as in \cite{baidemmelgu94}).
+%\subsection{}
+
 \section{Smallest singular value bounds}
 
 The estimates for our main theorem are based on the following result, a more general case of which can be found in \cite{dumitriu?} as Theorem []. 
 
-%\red{I know I proposed $\smin$ as the random variable for the smallest singular value of an $r\times r$ corner of an $n\times n$ Haar matrix, but I think it gets confusing in the main theorem.  There $\smin$ is random and independent of the matrix $A$ and $\sigma_i$ with $i=1,r,r+1$ are all singular values of the matrix $A$.  I've made it a macro so we can change it easily.  It might be worth stating it in a definition environment upfront, and then the following proposition can read``The distribution of $\smin^2$ is...".}
+\begin{definition}
+Let $\smin$ be a random variable denoting the smallest singular value of an $r\times r$ corner of an $n\times n$ real Haar matrix.
+\end{definition}
 
-\begin{proposition} The probability density function (pdf) of the square of the smallest singular value of an $r \times r$ corner of an $n \times n$ real Haar matrix, with $r < n/2$, is given by
+\begin{proposition} The probability density function (pdf) of $\smin$, with $r < n/2$, is given by
 \[
-f_{r,n}(x) = c_{r,n} \frac{1}{\sqrt{x}} (1 - x)^{\frac{1}{2}r(n-r)-1}  {_{2}F_{1}} \left ( \frac{1}{2}(n-r-1), \frac{1}{2}(r-1); \frac{1}{2}(n-1)+1; 1-x \right)~,
+\fmin(x) = c_{r,n} \frac{1}{\sqrt{x}} (1 - x)^{\frac{1}{2}r(n-r)-1}  {_{2}F_{1}} \left ( \frac{1}{2}(n-r-1), \frac{1}{2}(r-1); \frac{1}{2}(n-1)+1; 1-x \right)~,
 \]
 where
 \[
@@ -101,8 +216,7 @@ c_{r,n} = \frac{\frac{1}{2}r(n-r) ~\Gamma \left( \frac{1}{2}(n-r+1) \right) ~\Ga
 \]
 \end{proposition}
 
-This Proposition allows us to estimate very closely the probability that the smallest singular value $\smin$ is small. In particular, the correct scaling for the asymptotics of $\smin$ under $r$ and$\slash$or $n \rightarrow \infty$ was proved to be $\sqrt{r(n-r)}$ (that is, $\smin \sqrt{r(n-r)} = O(1)$ almost surely), which means that the kind of \red{upper} bounds one should search for $\smin$ are of the form ``$\smin \red{\leq} \red{a}/\sqrt{r(n-r)}$'' for some constant $\red{a}$. This constant $\red{a}$ will depend on how confident we want to be that the inequality happens; if we wish to say that the inequality fails with probability $\delta$, then we will have $\red{a}$ as a function of $\delta$. \red{GB -  I switched lower to upper because we use only the upper bound on $\smin$, and I switched $c$ to $a$ because $c$ gets used later in the main theorem.}
-
+This Proposition allows us to estimate very closely the probability that $\smin$ is small. In particular, the correct scaling for the asymptotics of $\smin$ under $r$ and$\slash$or $n \rightarrow \infty$ was proved to be $\sqrt{r(n-r)}$ (that is, $\smin \sqrt{r(n-r)} = O(1)$ almost surely), which means that the kind of upper bounds one should search for $\smin$ are of the form ``$\smin \leq a/\sqrt{r(n-r)}$'' for some constant $a$. This constant $a$ will depend on how confident we want to be that the inequality holds; if we wish to say that the inequality fails with probability $\delta$, then we will have $a$ as a function of $\delta$. 
 
 \begin{lemma} 
 \label{low_bd}
@@ -111,17 +225,17 @@ satisfies $P\left [ \smin \leq \frac{\delta}{\sqrt{r(n-r)}} \right] \leq  2.02 \
 \end{lemma}
 \begin{proof} 
 
-What we essentially need to do here is find an upper bound on $f_{min}$ which, when integrated over small intervals next to $0$, yields the bound in the Lemma.
+What we essentially need to do here is find an upper bound on $\fmin$ which, when integrated over small intervals next to $0$, yields the bound in the Lemma.
 
-We will first upper bound the term $(1-x)^{\frac{1}{2}r(n-r)-1}$ in the expression of $f_{min}(x)$ by $1$.
+We will first upper bound the term $(1-x)^{\frac{1}{2}r(n-r)-1}$ in the expression of $\fmin(x)$ by $1$.
 
-Secondly, we note that the hypergeometric function has all positive arguments, and hence from its definition, it is  monotonically decreasing from $0$ to $1$, and so we bound it by its value at $x=0$. As per \red{\cite[Formula 15.1.20]{Abr_Steg}}, 
+Secondly, we note that the hypergeometric function has all positive arguments, and hence from its definition, it is  monotonically decreasing from $0$ to $1$, and so we bound it by its value at $x=0$. As per \cite[Formula 15.1.20]{Abr_Steg}, 
 \[
 _{2}F_{1} \left ( \frac{1}{2}(n-r-1), \frac{1}{2}(r-1); \frac{1}{2}(n-1)+1; 1\right) = \frac{\Gamma \left (\frac{1}{2} (n+1) \right) \Gamma\left(\frac{3}{2}\right)}{\Gamma \left ( \frac{1}{2}(n-r+2)\right) \Gamma \left ( \frac{1}{2} (r+2) \right) }~,
 \]
 and after some obvious cancellation we obtain that 
 \[
-f_{min}(x) \leq \frac{1}{2} r(n-r) \cdot \frac{\Gamma \left ( \frac{1}{2}(n-r+1)\right)}{\Gamma \left (\frac{1}{2}(n-r+2)\right)} \cdot \frac{\Gamma \left(\frac{1}{2}(r+1)\right)}{\Gamma \left ( \frac{1}{2} (r+2)\right)} \cdot \frac{1}{\sqrt{x}}.
+\fmin(x) \leq \frac{1}{2} r(n-r) \cdot \frac{\Gamma \left ( \frac{1}{2}(n-r+1)\right)}{\Gamma \left (\frac{1}{2}(n-r+2)\right)} \cdot \frac{\Gamma \left(\frac{1}{2}(r+1)\right)}{\Gamma \left ( \frac{1}{2} (r+2)\right)} \cdot \frac{1}{\sqrt{x}}.
 \]
 
 The following expansion can be derived from Stirling's formula and is given as a particular case of \cite[Formula 6.1.47]{Abr-Steg} (with $a = 0,~b = 1/2$):
@@ -134,11 +248,11 @@ In particular, $z>30$ means that $z^{1/2} \frac{\Gamma(z)}{\Gamma(z+ 1/2)} < 1.0
 
 Provided that $r, n-r >30$, we thus have
 \[
-f_{min}(x) \leq 1.01 \cdot \sqrt{ r(n-r)} \sqrt{\frac{r(n-r)}{(r+1)(n-r+1)}} \frac{1}{\sqrt{x}}~,
+\fmin(x) \leq 1.01 \cdot \sqrt{ r(n-r)} \sqrt{\frac{r(n-r)}{(r+1)(n-r+1)}} \frac{1}{\sqrt{x}}~,
 \]
 and so
 \[
-f_{min}(x) \leq 1.01  \cdot \sqrt{ r(n-r)}  \cdot \frac{1}{\sqrt{x}}~.
+\fmin(x) \leq 1.01  \cdot \sqrt{ r(n-r)}  \cdot \frac{1}{\sqrt{x}}~.
 \]
 
 %Quick integration, plus a simple change of variables, allows us to conclude the following result. 
@@ -148,7 +262,7 @@ P\left [ \smin \leq \frac{\delta}{\sqrt{r(n-r)}} \right] & = & P\left [ \smin^2 
 & \leq &  1.01 \int_0^{\frac{\delta^2}{r(n-r)}} \sqrt{r(n-r)} \frac{1}{\sqrt{t}} dt  \\
 & = &  2.02 \delta. 
 \end{eqnarray*}
-The last equality was obtained by the change of variable $t = y/(r(n-r))$. 
+%The last equality was obtained by the change of variable $t = y/(r(n-r))$. 
 
 \end{proof}
 
@@ -157,7 +271,7 @@ As an immediate corollary to Lemma \ref{low_bd} we obtain the following result, 
 \begin{corollary} 
  \label{lowbd}
  Let $\delta>0$, $r, n-r>30$. Then 
-$$\red{P\left [ \frac1\smin \leq \frac{2.02}{\delta}\sqrt{r(n-r)} \right] \geq 1-\delta}~.$$
+$$P\left [ \frac1\smin \leq \frac{2.02}{\delta}\sqrt{r(n-r)} \right] \geq 1-\delta~.$$
 \end{corollary}
 
 %\red{GB - I switched the statement of the corollary to the version we use.}
@@ -212,26 +326,26 @@ Then, with probability $1-\delta$, the following three events occur:
 \begin{eqnarray}
 \label{unu} \frac{\delta}{2.02} \frac{\sigma_{r}}{\sqrt{r (n-r)}} & \leq & \sigma_{\min}(R_{11}) \leq \sigma_r ~,\\ 
 \label{doi} \sigma_{r+1} & \leq & \sigma_{\max} (R_{22}) \leq \left ( \frac{\left ( \frac{2.02 c}{\delta} \right)^3 \frac{1.01}{\delta C}}{1- \left ( \frac{1.01}{\delta C} \right)^2} (r(n-r))^{3/2} +  \frac{\left ( \frac{2.02 c}{\delta} \right)^2}{1 -\left ( \frac{1.01}{\delta C} \right)^2} r(n-r) + 1 \right ) \sigma_{r+1}~,\\
-\label{trei} ||R_{11}^{-1} R_{12}||_2 & \leq & \frac{2.02}{\delta} \frac{1}{1-\left ( \frac{1.01}{\delta C} \right)^{\red{2}}} \sqrt{r (n-r)} + \frac{(1.01)^2}{\delta^2 C^2} \frac{1}{1 - \left ( \frac{1.01}{\delta C} \right)^2} ~.
+\label{trei} ||R_{11}^{-1} R_{12}||_2 & \leq & \frac{2.02}{\delta} \frac{1}{1-\left ( \frac{1.01}{\delta C} \right)^{2}} \sqrt{r (n-r)} + \frac{(1.01)^2}{\delta^2 C^2} \frac{1}{1 - \left ( \frac{1.01}{\delta C} \right)^2} ~.
 \end{eqnarray}
 \end{theorem}
 
-The expressions in the above theorem are as general as possible; for simplicity of calculations, in our experiments, we will make use of the more restrictive assumption $\delta C>\sqrt{2} \cdot 1.01$, and upper bound all quantities involved accordingly. This yields the following corollary.
+To simplify the expressions, we will make use of the more restrictive assumption $\delta C>\sqrt{2} \cdot 1.01$. This yields the following corollary.
 
 \begin{corollary}
 Under all assumptions above and with the additional assumption that $\delta C>\sqrt{2} \cdot 1.01$, the following are true with probability $1-\delta$:
 \begin{eqnarray}
-\label{unu} \frac{\delta}{2.02} \frac{\sigma_{r}}{\sqrt{r (n-r)}} & \leq & \sigma_{\min}(R_{11}) \leq \sigma_r ~,\\ 
-\label{doi} \sigma_{r+1} & \leq & \sigma_{\max} (R_{22}) \leq \left (4c^3C^3 (r(n-r))^{3/2} +  4c^2C^2 r(n-r) + 1 \right ) \sigma_{r+1}~,\\
-\label{trei} ||R_{11}^{-1} R_{12}||_2 & \leq & 2C\sqrt{2}\cdot \sqrt{r (n-r)} + 1 ~.
+\label{unu} \frac{\delta}{2.02} \frac{1}{\sqrt{r (n-r)}} & \leq & \frac{\sigma_{\min}(R_{11})}{\sigma_r} \leq 1 ~,\\ 
+\label{doi} 1 & \leq & \frac{\sigma_{\max} (R_{22})}{\sigma_{r+1}} \leq \frac{16.65c^3}{\delta^4C} (r(n-r))^{3/2} +  \frac{8.17c^2}{\delta^2} r(n-r) + 1 ~,\\
+\label{trei} ||R_{11}^{-1} R_{12}||_2 & \leq & \frac{4.04}{\delta} \cdot \sqrt{r (n-r)} + 1 ~.
 \end{eqnarray}
 \end{corollary}
 %\red{In hopes of simplifying the presentation of the bounds, I propose we assume that $\delta C> \sqrt 2 \cdot 1.01$.  By doing so, we can bound $1/(1-(1.01/(\delta C))^2)$ by 2 and replace the four appearances of that denominator with a change in constant.  Then maybe we can state every term in the upper bounds as constant times fraction involving powers of $\delta,C,c$ times some power of $r(n-r)$, and the bounds will be easier to parse.}
 
 %\normalsize
 
-\begin{remark} The multiplicative link between $\delta$ and $C$ can easily be seen to mean that the smaller the gap \red{between consecutive singular values}, the greater the uncertainty \red{that the above inequalities hold}. Also note that the constant $1.01$ can be made arbitrarily close to $1$, provided that $n$ and $r$ are large enough, as should be clear from the proof of Lemma \ref{low_bd}.
-However, one needs $C$ to be strictly bigger than $1$ \red{in order to guarantee that} this algorithm \red{will} succeed with positive probability, even when $n$ and $r$ are very large indeed.  \red{GB - The previous wording made it sound like the algorithm will certainly fail if $C\leq 1$, but it's only the analysis that fails.}
+\begin{remark} The multiplicative link between $\delta$ and $C$ can easily be seen to mean that the smaller the gap between consecutive singular values $\sigma_r$ and $\sigma_{r+1}$, the greater the uncertainty that the above inequalities hold. Also note that the constant $1.01$ can be made arbitrarily close to $1$, provided that $n$ and $r$ are large enough, as should be clear from the proof of Lemma \ref{low_bd}.
+However, one needs $C$ to be strictly bigger than $1$ in order to guarantee that this algorithm will succeed with positive probability, even when $n$ and $r$ are very large indeed. 
 %If $C \leq 1$, we cannot provide any guarantees that the algorithm will work.
 %\red{Does this mean for $C<1$ that the bounds are sure to fail, or just that we can't prove any guarantee?}
 %The $2$ in the condition $\sigma_r/\sigma_{r+1} > 2n$
@@ -327,7 +441,7 @@ Since $X_{12}$ is a submatrix of a unitary matrix, $||X_{12}|| \leq 1$, and thus
 \begin{eqnarray} \label{r-bound}
 ||T_1|| \leq ||X_{11}^{-1}|| \cdot  || \left (I_r + \Sigma_1^{-2} (X_{21} X_{11}^{-1})^{H} \Sigma_2^2 (X_{21} X_{11}^{-1}) \right )^{-1}|| \leq \frac{1}{\smin} \cdot \frac{1}{1 - \frac{\sigma_{r+1}^2}{ \smin^2 \sigma_r^2}}~,
 \end{eqnarray}
-where the last inequality follows from the \red{fact} that for a matrix $A$ with $||A||<1$, $||(I-A)^{-1}|| \leq \frac{1}{1 - ||A||}$. The right hand side has been obtained by applying norm inequalities and using the fact that $||X_{11}^{-1}|| = \smin^{-1}$. 
+where the last inequality follows from the fact that for a matrix $A$ with $||A||<1$, $||(I-A)^{-1}|| \leq \frac{1}{1 - ||A||}$. The right hand side has been obtained by applying norm inequalities and using the fact that $||X_{11}^{-1}|| = \smin^{-1}$. 
 
 The same bounds on $\smin$ and $\sigma_{r+1}/(\smin \sigma_{r})$ apply as before to yield the first summand in \eqref{trei}.
 
